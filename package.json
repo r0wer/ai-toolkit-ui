@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start -p 18675",
+    "start": "next start -p ${PORT:-18675}",
     "build_and_start": "npm run build && npm run start",
     "lint": "eslint"
   },

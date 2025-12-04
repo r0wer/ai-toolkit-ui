@@ -71,10 +71,23 @@ if [ ! -d "node_modules" ]; then
     npm install 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
 fi
 
-# Build and Start
-# Using the build_and_start script defined in package.json
-echo "Building and starting Next.js app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
-npm run build_and_start 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
+# Check for port conflicts
+echo "Checking port 18675..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+if netstat -tuln | grep -q ":18675 "; then
+    echo "Port 18675 is in use. Attempting to identify and kill..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+    fuser -k 18675/tcp || true
+    sleep 2
+fi
+
+# Build if needed
+if [ ! -d ".next" ]; then
+    echo "Building Next.js app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+    npm run build 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
+fi
+
+# Start
+echo "Starting Next.js app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+npm run start 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
 
 EOF
 
