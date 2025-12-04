@@ -15,10 +15,10 @@ REPO_DIR="${WORKSPACE}/ai-toolkit-ui"
 # Ensure we are in the workspace
 cd "$WORKSPACE"
 
-# Install Python dependencies if requirements.txt exists
-if [ -f "${REPO_DIR}/requirements.txt" ]; then
-    echo "Installing Python dependencies..."
-    pip install -r "${REPO_DIR}/requirements.txt"
+# Install Python dependencies for Gradio App
+if [ -f "${REPO_DIR}/gradio_new/requirements.txt" ]; then
+    echo "Installing Gradio dependencies..."
+    pip install -r "${REPO_DIR}/gradio_new/requirements.txt"
 fi
 
 # Create the startup script for the UI
@@ -51,39 +51,20 @@ trap cleanup EXIT INT TERM
 # Create log directory
 mkdir -p /var/log/portal
 
-# User can configure startup by removing the reference in /etc/portal.yaml - So wait for that file and check it
+# User can configure startup by removing the reference in /etc/portal.yaml
 while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     echo "Waiting for /etc/portal.yaml before starting \${PROC_NAME}..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
     sleep 1
 done
 
-echo "Starting AI Toolkit UI..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+echo "Starting AI Toolkit UI (Gradio)..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
 
-# Load NVM to get node/npm
-if [ -f "/opt/nvm/nvm.sh" ]; then
-    . /opt/nvm/nvm.sh
-fi
-
-cd "${REPO_DIR}"
-
-# Install Node dependencies if missing
-if [ ! -d "node_modules" ]; then
-    echo "Installing Node modules..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
-    npm install 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
-fi
-
-# Check for port conflicts
+# Check for port conflicts (18675)
 echo "Checking port 18675..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
 if netstat -tuln | grep -q ":18675 "; then
     echo "Port 18675 is in use. Attempting to identify and kill..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
     fuser -k 18675/tcp || true
     sleep 2
-fi
-
-# Build if needed
-if [ ! -d ".next" ]; then
-    echo "Building Next.js app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
-    npm run build 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
 fi
 
 # Ensure sd-scripts is installed (logic from setup.sh)
@@ -112,15 +93,12 @@ if [ ! -d "${WORKSPACE}/sd-scripts" ]; then
     cd "${REPO_DIR}"
 fi
 
-# Start
-echo "Starting Next.js app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+# Start Gradio App
+echo "Starting Gradio app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
 
-# Ensure port 18675 is free
-echo "Checking port 18675..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
-fuser -k 18675/tcp || true
-sleep 2
-
-npm run start 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
+cd "${REPO_DIR}/gradio_new"
+export PORT=18675
+python app.py 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
 
 EOF
 
