@@ -113,6 +113,12 @@ fi
 
 # Start
 echo "Starting Next.js app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+
+# Ensure port 18675 is free
+echo "Checking port 18675..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+fuser -k 18675/tcp || true
+sleep 2
+
 npm run start 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
 
 EOF
