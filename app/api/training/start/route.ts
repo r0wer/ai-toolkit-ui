@@ -61,7 +61,6 @@ flip_aug = false
 
         // Ensure models are present before starting
         // We add a pre-check script to the wrapper
-        const wrapperScriptPath = path.join(workspaceDir, 'run_training.sh');
 
         // Script to download models using the python script
         // We copy the python script to workspace if needed or run it from where it is
@@ -79,7 +78,37 @@ flip_aug = false
             console.error("Could not copy download script, assuming it exists or using fallback", e);
         }
 
-        const downloadLogic = `
+        const isWin = process.platform === 'win32';
+        const wrapperScriptPath = path.join(workspaceDir, isWin ? 'run_training.bat' : 'run_training.sh');
+
+        let wrapperScript = '';
+
+        if (isWin) {
+            // Windows Batch Script
+            // Replace bash line continuations (\) with batch (^), but be careful not to break paths
+            // The UI generates " \\" at the end of lines.
+            let winCommand = finalCommand.replace(/ \\\\/g, ' ^');
+
+            wrapperScript = `@echo off
+cd /d "${sdScriptsDir}"
+call "${path.join(workspaceDir, 'venv', 'Scripts', 'activate.bat')}"
+
+echo Checking and downloading models...
+python "${workspaceDownloadScriptPath}"
+if %errorlevel% neq 0 (
+    echo Error downloading models
+    exit /b 1
+)
+
+echo Starting training...
+${winCommand}
+`;
+        } else {
+            // Linux Bash Script
+            wrapperScript = `#!/bin/bash
+cd "${sdScriptsDir}"
+source venv/bin/activate
+
 # Run python download script
 echo "Checking and downloading models..."
 python3 "${workspaceDownloadScriptPath}"
@@ -87,22 +116,18 @@ if [ $? -ne 0 ]; then
     echo "Error downloading models"
     exit 1
 fi
-`;
-
-        const wrapperScript = `#!/bin/bash
-cd "${sdScriptsDir}"
-source venv/bin/activate
-
-${downloadLogic}
 
 # Execute the command passed from UI
 ${finalCommand}
 `;
+        }
+
         fs.writeFileSync(wrapperScriptPath, wrapperScript);
-        fs.chmodSync(wrapperScriptPath, '755');
+        if (!isWin) fs.chmodSync(wrapperScriptPath, '755');
 
         const child = spawn(wrapperScriptPath, [], {
             detached: true,
+            shell: isWin, // Required for .bat on Windows
             stdio: ['ignore', 'pipe', 'pipe']
         });
 

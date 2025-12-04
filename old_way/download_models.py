@@ -7,33 +7,30 @@ import sys
 MODELS = [
     {
         "url": "https://huggingface.co/lodestones/Chroma1-HD/resolve/main/Chroma1-HD.safetensors",
-        "filename": "Chroma1-HD.safetensors",
+        "dest": "workspace/Chroma1-HD.safetensors",
         "name": "Chroma1-HD"
     },
     {
         "url": "https://huggingface.co/UmeAiRT/ComfyUI-Auto_installer/resolve/df511f9f086b2f12e3a81471831ccb23969d8461/t5xxl_fp16.safetensors",
-        "filename": "t5xxl_fp16.safetensors",
+        "dest": "workspace/t5xxl_fp16.safetensors",
         "name": "T5XXL FP16"
     },
     {
         "url": "https://huggingface.co/receptektas/black-forest-labs-ae_safetensors/resolve/main/ae.safetensors",
-        "filename": "ae.safetensors",
+        "dest": "workspace/ae.safetensors",
         "name": "VAE (AutoEncoder)"
     }
 ]
 
-WORKSPACE_DIR = os.environ.get("DATA_DIRECTORY", "/workspace")
+# Optional: HF Token if needed for private models
+# The user requested to remove the hardcoded token.
+# It will now only be used if explicitly set in the environment.
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
 def download_file(url, dest, name):
     if os.path.exists(dest):
-        # Check if file is not empty (simple check)
-        if os.path.getsize(dest) > 1024 * 1024: # > 1MB
-            print(f"✓ {name} already exists at {dest}")
-            return
-        else:
-            print(f"⚠️ {name} exists but is too small. Re-downloading...")
-            os.remove(dest)
+        print(f"✓ {name} already exists at {dest}")
+        return
 
     print(f"⬇️  Downloading {name}...")
     
@@ -78,14 +75,12 @@ def main():
     print("=========================================================================")
     print("===                  MODEL DOWNLOADER                                 ===")
     print("=========================================================================")
-    print(f"Workspace Directory: {WORKSPACE_DIR}")
     
     # Ensure workspace directory exists
-    os.makedirs(WORKSPACE_DIR, exist_ok=True)
+    os.makedirs("workspace", exist_ok=True)
     
     for model in MODELS:
-        dest_path = os.path.join(WORKSPACE_DIR, model["filename"])
-        download_file(model["url"], dest_path, model["name"])
+        download_file(model["url"], model["dest"], model["name"])
         
     print("\n✓ All models processed.")
 
