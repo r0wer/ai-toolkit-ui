@@ -63,21 +63,44 @@ flip_aug = false
         // We add a pre-check script to the wrapper
         const wrapperScriptPath = path.join(workspaceDir, 'run_training.sh');
 
-        // Script to download models if missing
+        // Script to download models if missing or corrupted (too small)
         const downloadLogic = `
-# Check and download models if missing
-if [ ! -f "${workspaceDir}/Chroma1-HD.safetensors" ]; then
-    echo "Downloading Chroma1-HD model..."
-    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/Chroma1-HD.safetensors" -O "${workspaceDir}/Chroma1-HD.safetensors"
-fi
-if [ ! -f "${workspaceDir}/t5xxl_fp16.safetensors" ]; then
-    echo "Downloading T5 Encoder..."
-    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/t5xxl_fp16.safetensors" -O "${workspaceDir}/t5xxl_fp16.safetensors"
-fi
-if [ ! -f "${workspaceDir}/ae.safetensors" ]; then
-    echo "Downloading VAE..."
-    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/ae.safetensors" -O "${workspaceDir}/ae.safetensors"
-fi
+check_and_download() {
+    FILE="$1"
+    URL="$2"
+    MIN_SIZE="$3"
+    
+    if [ -f "$FILE" ]; then
+        SIZE=$(stat -c%s "$FILE")
+        if [ "$SIZE" -lt "$MIN_SIZE" ]; then
+            echo "File $FILE is too small ($SIZE bytes), likely corrupted. Deleting and redownloading..."
+            rm "$FILE"
+        else
+            echo "File $FILE exists and size is OK ($SIZE bytes)."
+        fi
+    fi
+
+    if [ ! -f "$FILE" ]; then
+        echo "Downloading $FILE from $URL..."
+        # Use wget with progress bar
+        wget --progress=dot:giga "$URL" -O "$FILE"
+        
+        # Verify download
+        if [ $? -ne 0 ]; then
+            echo "Error downloading $FILE"
+            exit 1
+        fi
+    fi
+}
+
+# Chroma1-HD (Expect > 5GB)
+check_and_download "${workspaceDir}/Chroma1-HD.safetensors" "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/Chroma1-HD.safetensors" 5000000000
+
+# T5 Encoder (Expect > 4GB)
+check_and_download "${workspaceDir}/t5xxl_fp16.safetensors" "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/t5xxl_fp16.safetensors" 4000000000
+
+# VAE (Expect > 100MB)
+check_and_download "${workspaceDir}/ae.safetensors" "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/ae.safetensors" 100000000
 `;
 
         const wrapperScript = `#!/bin/bash
