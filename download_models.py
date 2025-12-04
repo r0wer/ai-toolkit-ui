@@ -5,15 +5,15 @@ from tqdm import tqdm
 
 MODELS = {
     "Chroma1-HD.safetensors": {
-        "url": "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/Chroma1-HD.safetensors",
+        "url": "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/Chroma1-HD.safetensors?download=true",
         "min_size": 5 * 1024 * 1024 * 1024  # 5GB
     },
     "t5xxl_fp16.safetensors": {
-        "url": "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/t5xxl_fp16.safetensors",
+        "url": "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/t5xxl_fp16.safetensors?download=true",
         "min_size": 4 * 1024 * 1024 * 1024  # 4GB
     },
     "ae.safetensors": {
-        "url": "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/ae.safetensors",
+        "url": "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/ae.safetensors?download=true",
         "min_size": 100 * 1024 * 1024  # 100MB
     }
 }
