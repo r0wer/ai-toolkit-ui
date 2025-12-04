@@ -483,7 +483,7 @@ def create_ui():
                             interactive=True
                         )
                         
-                        refresh_btn = gr.Button("🔄 Refresh", size="sm")
+                        refresh_btn = gr.Button("🔄 Refresh")
                         
                         with gr.Accordion("➕ Create New Dataset", open=False):
                             new_dataset_name = gr.Textbox(label="Dataset Name", placeholder="my_dataset")
@@ -509,11 +509,7 @@ def create_ui():
                         gallery = gr.Gallery(
                             label="Dataset Images",
                             show_label=False,
-                            columns=5,
-                            rows=3,
-                            height=400,
-                            object_fit="cover",
-                            allow_preview=True
+                            columns=5
                         )
                         
                         with gr.Row():
@@ -529,7 +525,7 @@ def create_ui():
                                     delete_image_btn = gr.Button("🗑️ Delete Image", variant="stop")
                             
                             with gr.Column(scale=1):
-                                selected_preview = gr.Image(label="Preview", height=200)
+                                selected_preview = gr.Image(label="Preview")
                         
                         caption_status = gr.Markdown("")
                 
@@ -640,7 +636,7 @@ def create_ui():
                         # System info
                         gr.Markdown("---")
                         system_info = gr.Markdown(get_system_info())
-                        refresh_system_btn = gr.Button("🔄 Refresh System Info", size="sm")
+                        refresh_system_btn = gr.Button("🔄 Refresh System Info")
                     
                     # Right column - Logs
                     with gr.Column(scale=2):
@@ -663,10 +659,9 @@ def create_ui():
                             headers=["Filename", "Size", "Created"],
                             datatype=["str", "str", "str"],
                             col_count=(3, "fixed"),
-                            interactive=False,
-                            height=150
+                            interactive=False
                         )
-                        refresh_checkpoints_btn = gr.Button("🔄 Refresh Checkpoints", size="sm")
+                        refresh_checkpoints_btn = gr.Button("🔄 Refresh Checkpoints")
                 
                 # Training event handlers
                 start_btn.click(
