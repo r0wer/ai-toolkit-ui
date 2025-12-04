@@ -142,7 +142,7 @@ def delete_dataset(dataset_choice):
     return f"❌ Dataset '{dataset_name}' not found", get_dataset_choices(), []
 
 def upload_images(dataset_choice, files):
-    """Upload images to a dataset."""
+    """Upload images and txt files to a dataset."""
     dataset_name = get_dataset_name(dataset_choice)
     if not dataset_name:
         return "❌ No dataset selected", []
@@ -151,18 +151,42 @@ def upload_images(dataset_choice, files):
         return "❌ No files selected", get_dataset_images(dataset_choice)
     
     path = Path(DATASETS_DIR) / dataset_name
-    count = 0
+    path.mkdir(parents=True, exist_ok=True)
+    
+    img_count = 0
+    txt_count = 0
     
     for file in files:
         if file is None:
             continue
-        src = Path(file.name if hasattr(file, 'name') else file)
-        if src.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]:
+        
+        # Handle different file formats from Gradio
+        if isinstance(file, str):
+            src = Path(file)
+        elif hasattr(file, 'name'):
+            src = Path(file.name)
+        else:
+            continue
+        
+        if not src.exists():
+            continue
+            
+        suffix = src.suffix.lower()
+        
+        if suffix in [".png", ".jpg", ".jpeg", ".webp"]:
             dst = path / src.name
             shutil.copy(str(src), str(dst))
-            count += 1
+            img_count += 1
+        elif suffix == ".txt":
+            dst = path / src.name
+            shutil.copy(str(src), str(dst))
+            txt_count += 1
     
-    return f"✅ Uploaded {count} images", get_dataset_images(dataset_choice)
+    msg = f"✅ Uploaded {img_count} images"
+    if txt_count > 0:
+        msg += f" and {txt_count} caption files"
+    
+    return msg, get_dataset_images(dataset_choice)
 
 def delete_image(dataset_choice, image_path):
     """Delete an image from dataset."""
@@ -489,11 +513,10 @@ def create_ui():
                             new_dataset_name = gr.Textbox(label="Dataset Name", placeholder="my_dataset")
                             create_btn = gr.Button("Create Dataset", variant="primary")
                         
-                        with gr.Accordion("📤 Upload Images", open=False):
+                        with gr.Accordion("📤 Upload Images & Captions", open=False):
                             upload_files = gr.File(
-                                label="Drop images here",
-                                file_count="multiple",
-                                file_types=["image"]
+                                label="Drop images (.png, .jpg) and captions (.txt) here",
+                                file_count="multiple"
                             )
                             upload_btn = gr.Button("Upload to Dataset", variant="primary")
                         
@@ -734,5 +757,6 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=int(os.environ.get("PORT", 7860)),
         share=False,
-        show_error=True
+        show_error=True,
+        allowed_paths=[WORKSPACE_DIR, DATASETS_DIR, OUTPUT_DIR, "/tmp"]
     )
