@@ -652,9 +652,7 @@ def create_ui():
                             label="",
                             lines=25,
                             max_lines=30,
-                            interactive=False,
-                            elem_classes=["terminal"],
-                            show_copy_button=True
+                            interactive=False
                         )
                         
                         refresh_logs_btn = gr.Button("🔄 Refresh Logs")
