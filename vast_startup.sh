@@ -9,6 +9,7 @@ fi
 
 # Define workspace and repo paths
 WORKSPACE="${WORKSPACE:-/workspace}"
+export DATA_DIRECTORY="${WORKSPACE}"
 REPO_DIR="${WORKSPACE}/ai-toolkit-ui"
 
 # Ensure we are in the workspace
@@ -83,6 +84,31 @@ fi
 if [ ! -d ".next" ]; then
     echo "Building Next.js app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
     npm run build 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
+fi
+
+# Ensure sd-scripts is installed (logic from setup.sh)
+if [ ! -d "${WORKSPACE}/sd-scripts" ]; then
+    echo "Installing sd-scripts..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
+    cd "${WORKSPACE}"
+    git clone https://github.com/kohya-ss/sd-scripts.git
+    cd sd-scripts
+    git checkout sd3
+    
+    # Create venv if not exists
+    if [ ! -d "venv" ]; then
+        python3 -m venv venv
+    fi
+    
+    . venv/bin/activate
+    
+    # Install dependencies
+    pip install torch==2.5.1+cu121 torchvision==0.20.1+cu121 --index-url https://download.pytorch.org/whl/cu121
+    pip install xformers --index-url https://download.pytorch.org/whl/cu121
+    pip install -r requirements.txt
+    pip install prodigy-plus-schedule-free lycoris-lora
+    
+    # Go back to UI dir
+    cd "${REPO_DIR}"
 fi
 
 # Start
