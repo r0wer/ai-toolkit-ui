@@ -78,7 +78,7 @@ flip_aug = false
   --sdpa \\
   --save_every_n_steps 250 \\
   --model_prediction_type raw \\
-  --mixed_precision "bf16" \\
+  --mixed_precision bf16 \\
   --full_bf16 \\
   --gradient_checkpointing \\
   --gradient_accumulation 1 \\
