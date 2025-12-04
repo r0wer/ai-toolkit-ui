@@ -1,0 +1,97 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Vast.ai environment setup
+if [ -f "/venv/main/bin/activate" ]; then
+    . /venv/main/bin/activate
+fi
+
+# Define workspace and repo paths
+WORKSPACE="${WORKSPACE:-/workspace}"
+REPO_DIR="${WORKSPACE}/ai-toolkit-ui"
+
+# Ensure we are in the workspace
+cd "$WORKSPACE"
+
+# Install Python dependencies if requirements.txt exists
+if [ -f "${REPO_DIR}/requirements.txt" ]; then
+    echo "Installing Python dependencies..."
+    pip install -r "${REPO_DIR}/requirements.txt"
+fi
+
+# Create the startup script for the UI
+mkdir -p /opt/supervisor-scripts
+cat > /opt/supervisor-scripts/ai-toolkit-ui.sh << EOF
+#!/bin/bash
+
+kill_subprocesses() {
+    local pid=\$1
+    local subprocesses=\$(pgrep -P "\$pid")
+    
+    for process in \$subprocesses; do
+        kill_subprocesses "\$process"
+    done
+    
+    if [[ -n "\$subprocesses" ]]; then
+        kill -TERM \$subprocesses 2>/dev/null
+    fi
+}
+
+cleanup() {
+    kill_subprocesses \$\$
+    sleep 2
+    pkill -KILL -P \$\$ 2>/dev/null
+    exit 0
+}
+
+trap cleanup EXIT INT TERM
+
+echo "Starting AI Toolkit UI..."
+
+# Load NVM to get node/npm
+if [ -f "/opt/nvm/nvm.sh" ]; then
+    . /opt/nvm/nvm.sh
+fi
+
+cd "${REPO_DIR}"
+
+# Install Node dependencies if missing
+if [ ! -d "node_modules" ]; then
+    echo "Installing Node modules..."
+    npm install
+fi
+
+# Build and Start
+# Using the build_and_start script defined in package.json
+echo "Building and starting Next.js app..."
+npm run build_and_start 2>&1 | tee "/var/log/ai-toolkit-ui.log"
+
+EOF
+
+chmod +x /opt/supervisor-scripts/ai-toolkit-ui.sh
+
+# Create Supervisor configuration
+cat > /etc/supervisor/conf.d/ai-toolkit-ui.conf << EOF
+[program:ai-toolkit-ui]
+environment=PROC_NAME="%(program_name)s"
+command=/opt/supervisor-scripts/ai-toolkit-ui.sh
+autostart=true
+autorestart=true
+exitcodes=0
+startsecs=0
+stopasgroup=true
+killasgroup=true
+stopsignal=TERM
+stopwaitsecs=10
+stdout_logfile=/dev/stdout
+redirect_stderr=true
+stdout_events_enabled=true
+stdout_logfile_maxbytes=0
+stdout_logfile_backups=0
+EOF
+
+# Reload supervisor to start the service
+echo "Reloading supervisor..."
+supervisorctl reread
+supervisorctl update
