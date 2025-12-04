@@ -1,6 +1,6 @@
 import os
 import requests
-from tqdm import tqdm
+
 import sys
 
 # Configuration
@@ -50,16 +50,19 @@ def download_file(url, dest, name):
         
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         
-        with open(dest, 'wb') as file, tqdm(
-            desc=name,
-            total=total_size,
-            unit='iB',
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as bar:
+        print(f"   Total size: {total_size / (1024*1024):.2f} MB")
+        
+        downloaded = 0
+        last_print = 0
+        with open(dest, 'wb') as file:
             for data in response.iter_content(block_size):
                 size = file.write(data)
-                bar.update(size)
+                downloaded += size
+                if total_size > 0:
+                    percent = int(downloaded / total_size * 100)
+                    if percent >= last_print + 10: # Print every 10%
+                        print(f"   ...{percent}% ({downloaded / (1024*1024):.2f} MB)")
+                        last_print = percent
         print(f"✓ {name} downloaded successfully.")
         
     except requests.exceptions.HTTPError as err:

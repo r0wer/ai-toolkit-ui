@@ -59,7 +59,11 @@ flip_aug = false
         // Update training command
         const cmd = `accelerate launch --num_cpu_threads_per_process 2 \\
   flux_train_network.py \\
+  --seed 1337 \\
   --pretrained_model_name_or_path "/workspace/Chroma1-HD.safetensors" \\
+  --model_type chroma \\
+  --t5xxl "/workspace/t5xxl_fp16.safetensors" \\
+  --ae "/workspace/ae.safetensors" \\
   --dataset_config "/workspace/lora_config.toml" \\
   --output_dir "/workspace/output/${trainingName}" \\
   --output_name "${trainingName}" \\
@@ -102,6 +106,7 @@ flip_aug = false
   --cache_latents_to_disk \\
   --cache_text_encoder_outputs_to_disk \\
   --log_with tensorboard \\
+  --log_config \\
   --save_precision fp16 \\
   --save_state`;
         setTrainingCommand(cmd);
@@ -331,16 +336,48 @@ flip_aug = false
 
                     {/* Logs / Status */}
                     <div className="flex flex-col h-full space-y-6">
-                        <div className="flex-1 rounded-xl border border-gray-200 bg-gray-900 p-6 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-                            <h2 className="text-lg font-semibold text-white mb-4">Training Logs</h2>
-                            <div className="flex-1 overflow-y-auto font-mono text-xs text-gray-300 space-y-1">
-                                {logs.length === 0 ? (
-                                    <p className="text-gray-600 italic">Waiting for logs...</p>
-                                ) : (
-                                    logs.map((log, i) => (
-                                        <div key={i} className="break-all">{log}</div>
-                                    ))
-                                )}
+                        <div className="flex-1 rounded-xl border border-gray-800 bg-gray-900 shadow-lg overflow-hidden flex flex-col min-h-[400px]">
+                            <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
+                                <h2 className="text-gray-100 font-medium flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-amber-400">
+                                        <polyline points="4 17 10 11 4 5"></polyline>
+                                        <line x1="12" y1="19" x2="20" y2="19"></line>
+                                    </svg>
+                                    Training Logs
+                                </h2>
+                                <div className="flex items-center space-x-2">
+                                    {isTraining && (
+                                        <span className="flex h-2 w-2 relative">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                        </span>
+                                    )}
+                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${isTraining ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-400'}`}>
+                                        {isTraining ? 'RUNNING' : 'IDLE'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="p-4 flex-1 flex flex-col bg-gray-900">
+                                <div className="bg-gray-950 rounded-lg p-4 relative flex-grow border border-gray-800 shadow-inner font-mono text-xs text-gray-300 overflow-y-auto">
+                                    {logs.length === 0 ? (
+                                        <div className="absolute inset-0 flex items-center justify-center text-gray-600 italic">
+                                            Waiting for logs...
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-1">
+                                            {logs.map((log, i) => (
+                                                <div key={i} className="break-all border-l-2 border-transparent hover:border-gray-700 pl-1 transition-colors">
+                                                    {log}
+                                                </div>
+                                            ))}
+                                            <div ref={(el) => {
+                                                if (el) {
+                                                    el.scrollIntoView({ behavior: 'smooth' });
+                                                }
+                                            }} />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
