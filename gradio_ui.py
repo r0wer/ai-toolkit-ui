@@ -460,10 +460,7 @@ footer { display: none !important; }
 def create_ui():
     """Create the Gradio UI."""
     
-    with gr.Blocks(
-        title="🎨 Chroma LoRA Training",
-        css=custom_css
-    ) as app:
+    with gr.Blocks() as app:
         
         gr.Markdown("""
         # 🎨 Chroma LoRA Training UI
