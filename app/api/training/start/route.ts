@@ -59,11 +59,33 @@ flip_aug = false
             finalCommand = `echo "Error: No training command provided"`;
         }
 
-        // Ensure the command runs in the correct directory and venv
+        // Ensure models are present before starting
+        // We add a pre-check script to the wrapper
         const wrapperScriptPath = path.join(workspaceDir, 'run_training.sh');
+
+        // Script to download models if missing
+        const downloadLogic = `
+# Check and download models if missing
+if [ ! -f "${workspaceDir}/Chroma1-HD.safetensors" ]; then
+    echo "Downloading Chroma1-HD model..."
+    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/Chroma1-HD.safetensors" -O "${workspaceDir}/Chroma1-HD.safetensors"
+fi
+if [ ! -f "${workspaceDir}/t5xxl_fp16.safetensors" ]; then
+    echo "Downloading T5 Encoder..."
+    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/t5xxl_fp16.safetensors" -O "${workspaceDir}/t5xxl_fp16.safetensors"
+fi
+if [ ! -f "${workspaceDir}/ae.safetensors" ]; then
+    echo "Downloading VAE..."
+    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/ae.safetensors" -O "${workspaceDir}/ae.safetensors"
+fi
+`;
+
         const wrapperScript = `#!/bin/bash
 cd "${sdScriptsDir}"
 source venv/bin/activate
+
+${downloadLogic}
+
 # Execute the command passed from UI
 ${finalCommand}
 `;

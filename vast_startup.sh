@@ -111,34 +111,6 @@ if [ ! -d "${WORKSPACE}/sd-scripts" ]; then
     cd "${REPO_DIR}"
 fi
 
-# Ensure models are downloaded
-if [ ! -f "${WORKSPACE}/Chroma1-HD.safetensors" ]; then
-    echo "Downloading Chroma1-HD model..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
-    cd "${WORKSPACE}"
-    # Use python script from setup.sh logic or direct wget if easier. 
-    # Since we don't have the python script here, let's use wget/huggingface-cli or similar if available, 
-    # OR better: run the download_models.py from the repo if it exists in the root (it was in the original setup.sh context)
-    
-    # Re-creating download_models.py logic here or downloading directly.
-    # Based on setup.sh, there was a python download_models.py. Let's try to replicate it or just download the main model.
-    # Assuming the user wants Chroma1-HD.safetensors.
-    
-    # NOTE: You might need a huggingface token or it might be public.
-    # Let's try to download it using wget to the workspace root.
-    # URL needs to be correct. Assuming it's from a known location or we use the python script if we can find it.
-    
-    # If the user provided setup.sh has a python script, let's use it.
-    # But wait, the user's setup.sh had: "python download_models.py".
-    # We don't have that file in the UI repo. It was likely in the root of the original repo.
-    # Let's create a simple downloader for the missing file.
-    
-    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/Chroma1-HD.safetensors" -O Chroma1-HD.safetensors
-    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/t5xxl_fp16.safetensors" -O t5xxl_fp16.safetensors
-    wget -q "https://huggingface.co/chroma-weights/Chroma1-HD/resolve/main/ae.safetensors" -O ae.safetensors
-    
-    # Also need clip_l if flux uses it, but Chroma usually needs t5xxl and ae.
-fi
-
 # Start
 echo "Starting Next.js app..." | tee -a "/var/log/portal/\${PROC_NAME}.log"
 npm run start 2>&1 | tee -a "/var/log/portal/\${PROC_NAME}.log"
