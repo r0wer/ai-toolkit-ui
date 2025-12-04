@@ -47,7 +47,16 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-echo "Starting AI Toolkit UI..."
+# Create log directory
+mkdir -p /var/log/portal
+
+# User can configure startup by removing the reference in /etc/portal.yaml - So wait for that file and check it
+while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
+    echo "Waiting for /etc/portal.yaml before starting ${PROC_NAME}..." | tee -a "/var/log/portal/${PROC_NAME}.log"
+    sleep 1
+done
+
+echo "Starting AI Toolkit UI..." | tee -a "/var/log/portal/${PROC_NAME}.log"
 
 # Load NVM to get node/npm
 if [ -f "/opt/nvm/nvm.sh" ]; then
@@ -58,14 +67,14 @@ cd "${REPO_DIR}"
 
 # Install Node dependencies if missing
 if [ ! -d "node_modules" ]; then
-    echo "Installing Node modules..."
-    npm install
+    echo "Installing Node modules..." | tee -a "/var/log/portal/${PROC_NAME}.log"
+    npm install 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"
 fi
 
 # Build and Start
 # Using the build_and_start script defined in package.json
-echo "Building and starting Next.js app..."
-npm run build_and_start 2>&1 | tee "/var/log/ai-toolkit-ui.log"
+echo "Building and starting Next.js app..." | tee -a "/var/log/portal/${PROC_NAME}.log"
+npm run build_and_start 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"
 
 EOF
 
