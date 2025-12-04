@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Sidebar } from '../components/Sidebar';
 
 interface Dataset {
@@ -17,11 +17,107 @@ export default function TrainingPage() {
     const [steps, setSteps] = useState(2500);
     const [learningRate, setLearningRate] = useState(1);
     const [isTraining, setIsTraining] = useState(false);
-    const [logs, setLogs] = useState<string[]>([]);
+    const [rawLog, setRawLog] = useState('');
     const [advancedMode, setAdvancedMode] = useState(false);
     const [advancedConfig, setAdvancedConfig] = useState('');
     const [trainingCommand, setTrainingCommand] = useState('');
     const [checkpoints, setCheckpoints] = useState<any[]>([]);
+    const logRef = useRef<HTMLDivElement>(null);
+    const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
+    const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Parse log lines - handle \r (carriage return) for progress bars
+    const logLines = useMemo(() => {
+        if (!rawLog) return [];
+        
+        // Split at line breaks on \n or \r\n
+        let splits: string[] = rawLog.split(/\n|\r\n/);
+
+        // Handle \r within lines (progress bar updates)
+        splits = splits.map(line => {
+            // Get the last segment after any \r (this is what would be displayed)
+            return line.split(/\r/).pop() || '';
+        });
+
+        // Filter out empty lines and limit to last 500 lines
+        splits = splits.filter(line => line.trim() !== '');
+        const maxLines = 500;
+        if (splits.length > maxLines) {
+            splits = splits.slice(splits.length - maxLines);
+        }
+
+        return splits;
+    }, [rawLog]);
+
+    // Handle scroll events to determine if user has scrolled away from bottom
+    const handleScroll = () => {
+        if (logRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = logRef.current;
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 20;
+            setIsScrolledToBottom(isAtBottom);
+        }
+    };
+
+    // Auto-scroll to bottom only if we were already at the bottom
+    useEffect(() => {
+        if (logRef.current && isScrolledToBottom) {
+            logRef.current.scrollTop = logRef.current.scrollHeight;
+        }
+    }, [rawLog, isScrolledToBottom]);
+
+    // Fetch training status and logs
+    const fetchStatus = useCallback(async () => {
+        try {
+            const res = await fetch('/api/training/status');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.logs) {
+                    setRawLog(data.logs);
+                }
+                const running = data.status === 'running';
+                setIsTraining(running);
+                return running;
+            }
+        } catch (error) {
+            console.error('Error fetching status:', error);
+        }
+        return false;
+    }, []);
+
+    // Check status on page load and start polling if training is running
+    useEffect(() => {
+        // Initial status check
+        fetchStatus().then((running) => {
+            if (running) {
+                startPolling();
+            }
+        });
+
+        // Cleanup on unmount
+        return () => {
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current);
+            }
+        };
+    }, [fetchStatus]);
+
+    const startPolling = () => {
+        // Clear existing polling
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+        }
+        
+        // Start new polling
+        pollingRef.current = setInterval(async () => {
+            const running = await fetchStatus();
+            if (!running) {
+                if (pollingRef.current) {
+                    clearInterval(pollingRef.current);
+                    pollingRef.current = null;
+                }
+            }
+        }, 2000);
+    };
 
     const fetchCheckpoints = async () => {
         try {
@@ -121,7 +217,7 @@ flip_aug = false
     const startTraining = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsTraining(true);
-        setLogs(['Starting training...']);
+        setRawLog('Starting training...\n');
 
         try {
             const body = advancedMode ? {
@@ -148,52 +244,33 @@ flip_aug = false
             });
 
             if (res.ok) {
-                setLogs(prev => [...prev, 'Training started successfully!']);
+                setRawLog(prev => prev + 'Training started successfully!\n');
                 // Start polling for logs
-                pollLogs();
+                startPolling();
             } else {
-                setLogs(prev => [...prev, 'Failed to start training.']);
+                setRawLog(prev => prev + 'Failed to start training.\n');
                 setIsTraining(false);
             }
         } catch (error) {
             console.error('Error starting training:', error);
-            setLogs(prev => [...prev, 'Error starting training.']);
+            setRawLog(prev => prev + 'Error starting training.\n');
             setIsTraining(false);
         }
     };
 
-    const pollLogs = () => {
-        const interval = setInterval(async () => {
-            try {
-                const res = await fetch('/api/training/status');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.logs) {
-                        setLogs(data.logs.split('\n').slice(-50)); // Keep last 50 lines
-                    }
-                    if (data.status === 'completed' || data.status === 'failed') {
-                        setIsTraining(false);
-                        clearInterval(interval);
-                    }
-                }
-            } catch (error) {
-                console.error('Error polling logs:', error);
-            }
-        }, 2000);
-    };
-
     return (
-        <div className="flex min-h-screen bg-white font-sans text-gray-900">
+        <div className="flex h-screen bg-white font-sans text-gray-900 overflow-hidden">
             <Sidebar />
-            <div className="flex-1 p-8">
-                <header className="mb-8">
+            <div className="flex-1 flex flex-col min-h-0 p-8 overflow-hidden">
+                <header className="flex-shrink-0 mb-6">
                     <h1 className="text-3xl font-bold tracking-tight text-gray-900">Training</h1>
                     <p className="mt-1 text-gray-500">Configure and start your LoRA training.</p>
                 </header>
 
-                <div className="grid gap-8 lg:grid-cols-2">
+                <div className="flex-1 grid gap-8 lg:grid-cols-2 min-h-0 overflow-hidden">
                     {/* Configuration Form */}
-                    <div className="space-y-6">
+                    <div className="overflow-y-auto pr-2">
+                        <div className="space-y-6">
                         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-semibold text-gray-900">Configuration</h2>
@@ -332,12 +409,13 @@ flip_aug = false
                                 </form>
                             )}
                         </div>
+                        </div>
                     </div>
 
                     {/* Logs / Status */}
-                    <div className="flex flex-col h-full space-y-6">
-                        <div className="flex-1 rounded-xl border border-gray-800 bg-gray-900 shadow-lg overflow-hidden flex flex-col min-h-[400px]">
-                            <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
+                    <div className="flex flex-col min-h-0 overflow-hidden">
+                        <div className="flex-1 rounded-xl border border-gray-800 bg-gray-900 shadow-lg overflow-hidden flex flex-col">
+                            <div className="flex-shrink-0 bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
                                 <h2 className="text-gray-100 font-medium flex items-center">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-amber-400">
                                         <polyline points="4 17 10 11 4 5"></polyline>
@@ -357,24 +435,26 @@ flip_aug = false
                                     </span>
                                 </div>
                             </div>
-                            <div className="p-4 flex-1 flex flex-col bg-gray-900">
-                                <div className="bg-gray-950 rounded-lg p-4 relative flex-grow border border-gray-800 shadow-inner font-mono text-xs text-gray-300 overflow-y-auto">
-                                    {logs.length === 0 ? (
-                                        <div className="absolute inset-0 flex items-center justify-center text-gray-600 italic">
+                            <div className="flex-1 min-h-0 bg-gray-950">
+                                <div 
+                                    ref={logRef}
+                                    onScroll={handleScroll}
+                                    className="h-full overflow-y-auto p-4 font-mono text-xs leading-relaxed"
+                                >
+                                    {logLines.length === 0 ? (
+                                        <div className="h-full flex items-center justify-center text-gray-600 italic">
                                             Waiting for logs...
                                         </div>
                                     ) : (
-                                        <div className="space-y-1">
-                                            {logs.map((log, i) => (
-                                                <div key={i} className="break-all border-l-2 border-transparent hover:border-gray-700 pl-1 transition-colors">
-                                                    {log}
-                                                </div>
+                                        <div className="space-y-0.5">
+                                            {logLines.map((line, index) => (
+                                                <pre 
+                                                    key={index} 
+                                                    className="text-gray-300 whitespace-pre-wrap break-all hover:bg-gray-900/50 px-1 rounded transition-colors"
+                                                >
+                                                    {line}
+                                                </pre>
                                             ))}
-                                            <div ref={(el) => {
-                                                if (el) {
-                                                    el.scrollIntoView({ behavior: 'smooth' });
-                                                }
-                                            }} />
                                         </div>
                                     )}
                                 </div>
@@ -382,9 +462,9 @@ flip_aug = false
                         </div>
 
                         {/* Checkpoints */}
-                        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-semibold text-gray-900">Checkpoints</h2>
+                        <div className="flex-shrink-0 mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-base font-semibold text-gray-900">Checkpoints</h2>
                                 <button
                                     onClick={fetchCheckpoints}
                                     className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
@@ -392,7 +472,7 @@ flip_aug = false
                                     Refresh
                                 </button>
                             </div>
-                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
                                 {checkpoints.length === 0 ? (
                                     <p className="text-sm text-gray-500 italic">No checkpoints found yet.</p>
                                 ) : (
