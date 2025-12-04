@@ -462,11 +462,6 @@ def create_ui():
     
     with gr.Blocks(
         title="🎨 Chroma LoRA Training",
-        theme=gr.themes.Soft(
-            primary_hue="indigo",
-            secondary_hue="slate",
-            neutral_hue="slate",
-        ),
         css=custom_css
     ) as app:
         
@@ -736,13 +731,6 @@ def create_ui():
                 - ⚡ Prodigy optimizer
                 - 📊 TensorBoard logging
                 """)
-        
-        # Auto-refresh training logs
-        app.load(
-            fn=get_training_logs,
-            outputs=[training_logs, training_status],
-            every=3  # Refresh every 3 seconds
-        )
     
     return app
 
